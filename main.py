@@ -27,6 +27,13 @@ def game(display, clock):
     player_image = laod_image("assets", "images", "player.png", size=[96, 96])
     shot_image = laod_image("assets", "images", "shot.png", size=[64, 64])
 
+    shot_sound = pygame.Sound(get_path("assets", "sounds", "shot.wav"))
+    death_sound = pygame.Sound(get_path("assets", "sounds", "death.wav"))
+    explosion_sound = pygame.Sound(get_path("assets", "sounds", "explosion.wav"))
+
+    # Изменить громкость звука:
+    # shot_sound.set_volume(0.5)
+
     coords = DISPLAY_SIZE[0] / 2, DISPLAY_SIZE[1] - 50
     player = Player(player_image, coords, PLAYER_SPEED, PLAYER_HEALTH)
 
@@ -34,6 +41,8 @@ def game(display, clock):
     enemies = list()
 
     difficulty = 0
+    score = 0
+    font = pygame.Font(get_path("assets", "fonts", "pixel.ttf"), 24)
     pygame.time.set_timer(SPAWN_EVENT, 2000, 1)
 
     while player.health > 0:
@@ -45,6 +54,7 @@ def game(display, clock):
                 exit()
 
             elif event.type == SHOOT_EVENT:
+                shot_sound.play()
                 b = Bullet(shot_image, player.rect.midtop, BULLET_SPPED)
                 bullets.append(b)
 
@@ -52,10 +62,16 @@ def game(display, clock):
                 millis = max(750, round(2000 - difficulty / 70))
                 pygame.time.set_timer(SPAWN_EVENT, millis, 1)
 
+                new_image = pygame.transform.rotozoom(
+                    asteroid_image,
+                    randint(0, 360),
+                    1 + randint(-10, 10) / 100,
+                )
+
                 e = Enemy(
                     round(ENEMY_DAMAGE + difficulty / 7_000),
-                    asteroid_image,
-                    [randint(50, DISPLAY_SIZE[0] - 50), -asteroid_image.height],
+                    new_image,
+                    [randint(50, DISPLAY_SIZE[0] - 50), -new_image.height],
                     ENEMY_SPEED + difficulty / 35_000,
                 )
                 enemies.append(e)
@@ -76,11 +92,14 @@ def game(display, clock):
         for b in bullets:
             for e in enemies:
                 if b.collide_entity(e):
+                    explosion_sound.play()
                     b.kill()
                     e.kill()
+                    score += 1
 
         for e in enemies:
             if e.collide_entity(player):
+                death_sound.play()
                 player.get_damage(e.damage)
                 e.kill()
 
@@ -99,6 +118,10 @@ def game(display, clock):
         width = int(player.health / PLAYER_HEALTH * HEALTH_BAR_WIDTH)
         pygame.draw.rect(display, (255, 0, 0), [10, 10, width, 20])
         pygame.draw.rect(display, (175, 0, 0), [8, 8, HEALTH_BAR_WIDTH + 4, 24], 2)
+
+        image_score = font.render(str(score), True, (50, 200, 50))
+        rect_score = image_score.get_rect(midtop = [DISPLAY_SIZE[0]/2, 10])
+        display.blit(image_score, rect_score)
 
         pygame.display.update()
         clock.tick(MAX_FPS)
@@ -128,6 +151,10 @@ def main():
     display = pygame.display.set_mode(DISPLAY_SIZE, pygame.RESIZABLE | pygame.SCALED)
     pygame.display.set_caption("Shooter")
     clock = pygame.time.Clock()
+
+    pygame.mixer.music.load(get_path("assets", "music", "background-1.mp3"))
+    pygame.mixer.music.set_volume(0.2)
+    pygame.mixer.music.play(-1)
 
     while True:
         game(display, clock)
